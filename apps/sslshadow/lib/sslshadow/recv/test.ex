@@ -9,8 +9,16 @@ defmodule Sslshadow.Recv.Test do
 
   def handle_cast(any, state) do
     Logger.debug(inspect any)
+    :poolboy.transaction(:sslproc, fn(wpid) -> Sslshadow.Recv.Test.dispatch(wpid, any) end )
     {:noreply, state}
   end
+
+  def dispatch(wpid, ip) do
+    Logger.debug("Dispatching #{ip} to " <> inspect wpid)
+    GenServer.cast(wpid, {:ip, ip})
+  end
+  
+
 
 end
 

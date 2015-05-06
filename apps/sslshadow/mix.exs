@@ -16,7 +16,7 @@ defmodule Sslshadow.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger, :amnesia, :sasl],
+    [applications: [:logger, :amnesia, :sasl, :poolboy],
      mod: {Sslshadow, []}]
   end
 

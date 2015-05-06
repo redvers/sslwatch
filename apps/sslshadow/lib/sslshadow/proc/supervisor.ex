@@ -6,7 +6,17 @@ defmodule Sslshadow.Proc.Supervisor do
   end
 
   def init([]) do
-    children = []
+    pool_options = [
+      name: {:local, :sslproc},
+      worker_module: Sslshadow.Proc,
+      size: 10,
+      max_overflow: 11
+    ]
+
+    children = [
+      :poolboy.child_spec(:sslproc, pool_options, [])
+    ]
+
     supervise(children, strategy: :one_for_one)
   end
 
