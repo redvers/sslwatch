@@ -1,78 +1,79 @@
 defmodule Sslshadow.SSL do
+
   require Logger
   def testcon({ip, port}) do
     testcon({:validate, ip, port})
   end
   def testcon({:validate, ip, port}) do
-    case :ssl.connect(to_char_list(ip), port, [{:verify, :verify_peer}, {:cacertfile, "/etc/ssl/certs/ca-certificates.crt"}], :infinity) do
+    ssltimeout = Application.get_env(:sslshadow, :ssltimeout, 10000)
+    cafile = Application.get_env(:sslshadow, :cafile)
+    case :ssl.connect(to_char_list(ip), port, [{:verify, :verify_peer}, {:cacertfile, cafile}], ssltimeout) do
       {:ok, sslsock}   -> Logger.debug("Got valid certificate")
                           validcert(:valid, ip,sslsock, :ok)
-      {:error, reason} -> failure(ip, reason)
-                          Logger.debug("Error detected: " <> inspect reason)
-#                          testcon({:novalidate, ip, port, reason})
+      {:error, reason} -> Logger.debug("Error detected: " <> inspect reason)
+                          testcon({:novalidate, ip, port, reason})
       reason           -> Logger.debug("I should never happen" <> inspect reason)
                           testcon({:novalidate, ip, port, reason})
     end
   end
   def testcon({:novalidate, ip, port, reason}) do
-    case :ssl.connect(to_char_list(ip), port, [], :infinity) do
+    ssltimeout = Application.get_env(:sslshadow, :ssltimeout, 10000)
+    case :ssl.connect(to_char_list(ip), port, [], ssltimeout) do
       {:ok, sslsock}   -> Logger.debug("Got unvalidated certificate and reason: " <> inspect reason)
                           validcert(:failedvalidation, ip, sslsock, reason)
-      {:error, reason} -> failure(ip, reason)
-      reason           -> Logger.debug("I should never happen" <> inspect reason)
+      {:error, reason} -> Logger.debug("Gotten tagged :error: " <> inspect reason)
+                          {:error, reason}
+      reason           -> Logger.debug("Gotten untagged error: " <> inspect reason)
+                          {:error, reason}
     end
   end
 
   def validcert(status, ip, sslsock, reason) do
     case :ssl.peercert(sslsock) do
       {:ok, cert} -> :ssl.close(sslsock)
-                     processcert({status, ip, cert, status})
+                     {reason, cert}
+#                     processcert({status, ip, cert, status})
       {:error, reason} -> Logger.debug("I don't exist" <> inspect reason)
-                          :ssl.close(sslsock)
+                      :ssl.close(sslsock)
+                      {:erron, reason}
     end
   end
 
-  def failure(ip,freason = {:tls_alert, _}) do
-    Logger.debug("TLS Issue #{ip}: " <> inspect freason)
-  end
 
-  def failure(ip, reason) when is_atom(reason) do
-    case :erl_posix_msg.message(reason) do
-      'unknown POSIX error' -> Logger.debug("I truely have no idea what this is on #{ip}..." <> Atom.to_string(reason))
-      humanreadable -> Logger.debug("POSIX error: " <> to_string(humanreadable))
-    end
-  end
-
-  def failure(ip, reason) do
-    Logger.debug("Lost in the wildreness... I dunno bob - notify me " <> inspect reason)
-  end
-
-  def processcert({:failedvalidation, _ip, cert, reason}) do
-    Logger.debug("Cert failed validation, examine anyways... " <> inspect reason)
-    :public_key.pkix_decode_cert(cert, :otp)
-    |> IO.inspect 
-  end
-  def processcert({:valid, _ip, cert, :valid}) do
-    Logger.debug("Cert is valid, work to do")
-    :public_key.pkix_decode_cert(cert, :otp)
-    |> IO.inspect 
-  end
-
-
-
-#  def failure(ip, :) do
-#    Logger.debug("Network Issue: connection refused #{ip}")
+#  def processcert({:failedvalidation, _ip, cert, reason}) do
+#    Logger.debug("Cert failed validation, examine anyways... " <> inspect reason)
+#    :public_key.pkix_decode_cert(cert, :otp)
+##    :public_key.pkix_issuer_id(cert, :self) |> IO.inspect
+##    :public_key.pkix_dist_points(cert) |> IO.inspect
+#  end
+#  def processcert({:valid, _ip, cert, :valid}) do
+#    Logger.debug("Cert is valid, work to do")
+#    :public_key.pkix_decode_cert(cert, :otp)
+##    :public_key.pkix_issuer_id(cert, :self) |> IO.inspect
+##    :public_key.pkix_dist_points(cert) |> IO.inspect
 #  end
 
+  def decode_cert(cert) do
+    {:OTPCertificate,
+      {:OTPTBSCertificate,
+        version,
+        serialNumber,
+        signature,
+        issuer,
+        validity,
+        subject,
+        subjectpublickey,
+        issuerUniqueID,
+        subjectUniqueID,
+        extensions},_,_} = :public_key.pkix_decode_cert(cert, :otp)
 
+        results = Enum.map(extensions, &v3extensionlookup/1)
+        |> Enum.filter(&(&1 != nil))
+      {subject, results} #UniqueID, issuerUniqueID}
+  end
 
-
-
-  # :ssl.connect('www.google.com', 443, [], :infinity)
-  # {:ok, cert} = :ssl.peercert(sslsocket)
-  # :public_key.pkix_decode_cert(cert, :otp)
-  # 174.0>}}
-  # iex(21)> {:ok, sslsocket} = :ssl.connect('www.pcwebshop.co.uk', 443, [{:verify, :verify_peer}, {:cacertfile, "/Users/red/project s/sslshadow/ca-certificates.crt"}], :infinity)
-
-
+  def v3extensionlookup({:Extension, {2, 5, 29, 14}, _bool, keyid}) do {:subjectKeyIdentifier, keyid} end
+  def v3extensionlookup({:Extension, {2, 5, 29, 35}, _bool, {:AuthorityKeyIdentifier, authorityKeyIdentifier,_,_}}) do {:authorityKeyIdentifier, authorityKeyIdentifier} end
+  def v3extensionlookup(_) do nil end
+    
 end

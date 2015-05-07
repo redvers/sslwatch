@@ -13,12 +13,9 @@ defmodule Sslshadow.Recv.Test do
     {:noreply, state}
   end
 
-  def dispatch(wpid, ip) do
+  def dispatch(wpid, {ip, port}) do
     Logger.debug("Dispatching #{ip} to " <> inspect wpid)
-    GenServer.cast(wpid, {:ip, ip})
+    GenServer.cast(wpid, {:ip, {ip, port}})
   end
-  
-
-
 end
 

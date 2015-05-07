@@ -8,6 +8,11 @@ defmodule Sslwatch.Mixfile do
      deps: deps]
   end
 
+  def application do
+    [applications: [:logger, :amnesia, :sasl, :poolboy],
+     mod: {Sslshadow, []}]
+  end
+
   # Dependencies can be Hex packages:
   #
   #   {:mydep, "~> 0.3.0"}
@@ -20,10 +25,5 @@ defmodule Sslwatch.Mixfile do
   #
   # Dependencies listed here are available only for this project
   # and cannot be accessed from applications inside the apps folder
-  defp deps do
-    [
-      {:poolboy, github: "devinus/poolboy", tag: "1.5.1"}
-
-    ]
-  end
+  defp deps do [] end
 end

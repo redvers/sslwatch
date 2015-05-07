@@ -33,9 +33,11 @@ defmodule Sslshadow.Mixfile do
   #   {:myapp, in_umbrella: true}
   #
   # Type `mix help deps` for more examples and options
+#  defp deps do [] end
   defp deps do
     [
+      {:poolboy, github: "devinus/poolboy", tag: "1.5.1"},
       {:amnesia, git: "https://github.com/meh/amnesia.git" }
-]
+    ]
   end
 end
