@@ -9,28 +9,26 @@ defmodule Sslshadow.Proc do
 
   def handle_cast({:ip, {ip, port}}, state) do
     case SSLShadowDB.IP.read!({ip, port}) do
-      %SSLShadowDB.IP{cachetime: cachetime, state: state} -> Logger.debug("Item is in cache - check age")
-                                                             if (cachetime > (ts + Application.get_env(:sslshadow, :ipcache))) do
-                                                               Logger.debug("I expired - purge")
-                                                               Amnesia.transaction do
-                                                                 SSHShadowDB.IP.delete({ip, port})
-                                                               end
+      %SSLShadowDB.IP{cachetime: cachetime, state: state}
+                                       -> Logger.debug("Item is in cache - check age")
+                                          if ((cachetime + Application.get_env(:sslshadow, :ipcache)) < ts) do
+                                            Logger.debug("I expired - purge")
+                                            Amnesia.transaction do
+                                              SSLShadowDB.IP.delete({ip, port})
+                                            end
 
-                                                               GenServer.cast(self, {:ip, {ip, port}})
-                                                               {:noreply, state}
-                                                             else
-                                                               Logger.debug(Integer.to_string(cachetime - (ts - Application.get_env(:sslshadow, :ipcache))) <> " seconds remain")
-                                                               {:noreply, state}
-                                                             end
-
-
-      
-             {:noreply, state}
-      nil ->  case (Sslshadow.SSL.testcon({ip, port}) |> receivecert) do
-                                   nil -> Logger.debug("Time to negative-cache")
+                                          GenServer.cast(self, {:ip, {ip, port}})
+                                            {:noreply, state}
+                                          else
+                                            Logger.debug(Integer.to_string(cachetime - (ts - Application.get_env(:sslshadow, :ipcache))) <> " seconds remain")
+                                            {:noreply, state}
+                                          end
                                           {:noreply, state}
-                [ipstruct, certstruct] -> [ipstruct, certstruct] = Sslshadow.SSL.testcon({ip, port}) |> receivecert
-                                          ipstruct = Map.put(ipstruct, :ip, {ip, port})
+      nil ->  case (Sslshadow.SSL.testcon({ip, port}) |> receivecert) do
+                  {:error, posixerror} -> Logger.debug("Time to negative-cache" <> inspect posixerror)
+                                          SSLShadowDB.IP.write!(%SSLShadowDB.IP{ip: {ip, port}, cachetime: ts, state: posixerror})
+                                          {:noreply, state}
+                [ipstruct, certstruct] -> ipstruct = Map.put(ipstruct, :ip, {ip, port})
                                           ipstruct = Map.put(ipstruct, :cachetime, ts)
 
                                           SSLShadowDB.IP.write!(ipstruct)
@@ -57,7 +55,7 @@ defmodule Sslshadow.Proc do
   end
   def receivecert({:error, posixerror}) do
     Logger.debug("Sslshadow.Proc: We have ourselves a POSIX error: " <> inspect posixerror)
-    nil
+    {:error, posixerror}
   end
   
   def ts do
