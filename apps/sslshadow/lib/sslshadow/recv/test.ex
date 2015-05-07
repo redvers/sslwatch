@@ -7,6 +7,12 @@ defmodule Sslshadow.Recv.Test do
     GenServer.start_link(__MODULE__, nil, [name: Sslshadow.Recv.Test])
   end
 
+  def inject({ip, port}) do
+    GenServer.cast(Sslshadow.Recv.Test, {ip, port})
+  end
+
+
+
   def handle_cast(any, state) do
     Logger.debug(inspect any)
     :poolboy.transaction(:sslproc, fn(wpid) -> Sslshadow.Recv.Test.dispatch(wpid, any) end )

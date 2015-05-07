@@ -17,11 +17,6 @@ defmodule SSLShadowDB.Cache do
     SSLShadowDB.IP.write!(cacheval)
   end
 
-
-
-
-
-
   defp checkvalid(nil) do
     nil
   end
