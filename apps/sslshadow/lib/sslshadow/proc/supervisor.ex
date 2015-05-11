@@ -6,10 +6,12 @@ defmodule Sslshadow.Proc.Supervisor do
   end
 
   def init([]) do
+    poolsize = Application.get_env(:sslshadow, :poolsize)
+    poolover = Application.get_env(:sslshadow, :poolover)
     pool_options = [
       name: {:local, :sslproc},
       worker_module: Sslshadow.Proc,
-      size: 10,
+      size: poolsize,
       max_overflow: 11
     ]
 

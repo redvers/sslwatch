@@ -8,22 +8,22 @@ defmodule Sslshadow.SSL do
     ssltimeout = Application.get_env(:sslshadow, :ssltimeout, 10000)
     cafile = Application.get_env(:sslshadow, :cafile)
     case :ssl.connect(to_char_list(ip), port, [{:verify, :verify_peer}, {:cacertfile, cafile}], ssltimeout) do
-      {:ok, sslsock}   -> Logger.debug("Sslshadow.SSL: Got valid certificate")
+      {:ok, sslsock}   -> #Logger.debug("Sslshadow.SSL: Got valid certificate")
                           validcert(:valid, ip,sslsock, :ok)
-      {:error, reason} -> Logger.debug("Sslshadow.SSL: Error detected: " <> inspect reason)
+      {:error, reason} -> #Logger.debug("Sslshadow.SSL: Error detected: " <> inspect reason)
                           testcon({:novalidate, ip, port, reason})
-      reason           -> Logger.debug("Sslshadow.SSL: I should never happen" <> inspect reason)
+      reason           -> #Logger.debug("Sslshadow.SSL: I should never happen" <> inspect reason)
                           testcon({:novalidate, ip, port, reason})
     end
   end
   def testcon({:novalidate, ip, port, reason}) do
     ssltimeout = Application.get_env(:sslshadow, :ssltimeout, 10000)
     case :ssl.connect(to_char_list(ip), port, [], ssltimeout) do
-      {:ok, sslsock}   -> Logger.debug("Sslshadow.SSL: Got unvalidated certificate and reason: " <> inspect reason)
+      {:ok, sslsock}   -> #Logger.debug("Sslshadow.SSL: Got unvalidated certificate and reason: " <> inspect reason)
                           validcert(:failedvalidation, ip, sslsock, reason)
-      {:error, reason} -> Logger.debug("Sslshadow.SSL: Gotten tagged :error: " <> inspect reason)
+      {:error, reason} -> #Logger.debug("Sslshadow.SSL: Gotten tagged :error: " <> inspect reason)
                           {:error, reason}
-      reason           -> Logger.debug("Sslshadow.SSL: Gotten untagged error: " <> inspect reason)
+      reason           -> #Logger.debug("Sslshadow.SSL: Gotten untagged error: " <> inspect reason)
                           {:error, reason}
     end
   end
@@ -33,7 +33,7 @@ defmodule Sslshadow.SSL do
       {:ok, cert} -> :ssl.close(sslsock)
                      {reason, cert}
 #                     processcert({status, ip, cert, status})
-      {:error, reason} -> Logger.debug("Sslshadow.SSL: I don't exist" <> inspect reason)
+      {:error, reason} -> #Logger.debug("Sslshadow.SSL: I don't exist" <> inspect reason)
                       :ssl.close(sslsock)
                       {:erron, reason}
     end

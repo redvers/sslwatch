@@ -8,9 +8,10 @@ defmodule Sslshadow do
     import Supervisor.Spec, warn: false
 
     case Amnesia.Table.exists?(SSLShadowDB.Certs) do
-       false -> Logger.debug("SSLShadowDB.Certs to be created")
+       false -> #Logger.debug("SSLShadowDB.Certs to be created")
                 SSLShadowDB.Certs.create(disk: [node])
-        true -> Logger.debug("Database already exists on disk... reading...")
+                SSLShadowDB.Domains.create(disk: [node])
+        true -> #Logger.debug("Database already exists on disk... reading...")
     end
 
     ## Create in-memory cache
@@ -24,7 +25,7 @@ defmodule Sslshadow do
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: Sslshadow.Recv.Supervisor]
+    opts = [strategy: :one_for_one, name: Sslshadow.Supervisor]
     Supervisor.start_link(children, opts)
 
 
