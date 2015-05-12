@@ -28,7 +28,26 @@ defmodule Sslshadow.Proc do
     |> extractSubject
     |> writeMemCache({ip,port})
     |> writefqdn({ip,port})
+    |> writesubAltNames({ip,port})
     |> IO.inspect
+  end
+
+  def writesubAltNames(state = {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer},{ip,port}) do
+    Enum.map(subAlts, &List.to_string/1)
+    |> Enum.map(fn(x) -> writefqdn({:ok, nil, nil, x, nil, nil, issuer},{ip,port}) end)
+
+
+    state
+#    case SSLShadowDB.DomainPersist.read!(fqdn) do
+#      nil     -> singleissuer = HashSet.new |> HashSet.put(issuer)
+#                 SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
+#      %SSLShadowDB.DomainPersist{issueids: hashset}
+#              -> SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
+#    end
+  end
+  def writesubAltNames(state,{ip,port}) do
+    Logger.debug("BOOM: "<> inspect state)
+    state
   end
 
 
@@ -44,7 +63,6 @@ defmodule Sslshadow.Proc do
     SSLShadowDB.IPPersist.write!(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:final, final}, timestamp: ts})
     {:final, final}
   end
-#    {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer}
   def writeMemCache(state = {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer},{ip,port}) do
     ipcachetime = Application.get_env(:sslshadow, :negcache)
     SSLShadowDB.IPMemCache.write!(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: :ok, cachetime: (ts + ipcachetime)})
@@ -53,15 +71,17 @@ defmodule Sslshadow.Proc do
     state
   end
   def writefqdn(state = {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer},{ip,port}) do
+    fqdn = to_string(fqdn)
     case SSLShadowDB.DomainPersist.read!(fqdn) do
       nil     -> singleissuer = HashSet.new |> HashSet.put(issuer)
                  SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
       %SSLShadowDB.DomainPersist{issueids: hashset}
               -> SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
     end
-#    SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{issueid: issuer, blob: cert})
+    state
   end
   def writefqdn(state,{ip,port}) do
+    Logger.debug("BOOM: " <> inspect state)
     state
   end
 
