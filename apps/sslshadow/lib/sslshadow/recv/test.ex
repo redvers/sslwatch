@@ -10,6 +10,16 @@ defmodule Sslshadow.Recv.Test do
   def inject({ip, port}) do
     GenServer.cast(Sslshadow.Recv.Test, {ip, port})
   end
+  def injectc({ip, port}) do
+    GenServer.call(Sslshadow.Recv.Test, {ip, port}, 20000)
+  end
+
+  def iptest do
+    stream = File.stream!("74.0-8")
+    Enum.map(stream, &(Regex.replace(~r/\n/, &1, "")))
+    |> Enum.map(&to_char_list/1)
+  end
+
 
   def nettest do
     File.read!(Application.get_env(:testenv, :dir))
@@ -17,17 +27,6 @@ defmodule Sslshadow.Recv.Test do
     |> Enum.map(&to_char_list/1)
     |> Enum.filter(&validFQDN?/1)
     |> Enum.map(&(Process.spawn(Sslshadow.Recv.Test, :spawnHostname, [&1], [])))
-#    |> Enum.map(fn(hostname) -> Process.spawn(Sslshadow.Recv.Test, &spawnHostname/1, [hostname], []) end )
-
-
-
-#    |> Enum.map(&(:inet_res.getbyname(&1, :a)))
-#    |> Enum.filter(&validResponse?/1)
-#    |> Enum.map(fn({:ok, {_,_,_,_,_,list}}) -> list end )
-#    |> List.flatten
-#    |> Enum.map(&tupleToCharIP/1)
-#    |> Enum.map(fn(ipchar) -> inject({ipchar, 443}) end)
-
   end
 
   def tupleToCharIP({a,b,c,d}) do
@@ -68,6 +67,11 @@ defmodule Sslshadow.Recv.Test do
   end
 
 
+  def handle_call(any, _from, state) do
+    #Logger.debug(inspect any)
+    :poolboy.transaction(:sslproc, fn(wpid) -> Sslshadow.Recv.Test.dispatch(wpid, any) end )
+    {:reply, :ok, state}
+  end
 
 
   def handle_cast(any, state) do

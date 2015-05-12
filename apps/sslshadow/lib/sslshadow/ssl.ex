@@ -7,7 +7,7 @@ defmodule Sslshadow.SSL do
   def testcon({:validate, ip, port}) do
     ssltimeout = Application.get_env(:sslshadow, :ssltimeout, 10000)
     cafile = Application.get_env(:sslshadow, :cafile)
-    case :ssl.connect(to_char_list(ip), port, [{:verify, :verify_peer}, {:cacertfile, cafile}], ssltimeout) do
+    case :ssl.connect(to_char_list(ip), port, [{:verify, 2}, {:depth, 9}, {:cacertfile, cafile}], ssltimeout) do
       {:ok, sslsock}   -> #Logger.debug("Sslshadow.SSL: Got valid certificate")
                           validcert(:valid, ip,sslsock, :ok)
       {:error, reason} -> #Logger.debug("Sslshadow.SSL: Error detected: " <> inspect reason)
