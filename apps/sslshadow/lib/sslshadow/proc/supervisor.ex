@@ -12,7 +12,7 @@ defmodule Sslshadow.Proc.Supervisor do
       name: {:local, :sslproc},
       worker_module: Sslshadow.Proc,
       size: poolsize,
-      max_overflow: 11
+      max_overflow: poolover
     ]
 
     children = [

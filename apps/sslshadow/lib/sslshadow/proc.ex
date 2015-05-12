@@ -14,8 +14,31 @@ defmodule Sslshadow.Proc do
       :purged -> pullssl({ip, port})
       :miss   -> pullssl({ip, port})
     end
-
   end
+
+  def fipin({ip,port}) do
+    ip = to_char_list(ip)
+    case SSLShadowDB.Cache.inMemCache?({ip,port}) do
+      :hit    -> :ok
+#      :purged -> :poolboy.transaction(:sslproc, spawn(fn(wpid) -> GenServer.call(wpid, {ip,port}) end ))
+#      :miss   -> :poolboy.transaction(:sslproc, spawn(fn(wpid) -> GenServer.call(wpid, {ip,port}) end ))
+      :purged -> :poolboy.transaction(:sslproc, fn(wpid) -> spawn(GenServer, :call, [wpid, {ip,port}]) end )
+      :miss   -> :poolboy.transaction(:sslproc, fn(wpid) -> spawn(GenServer, :call, [wpid, {ip,port}]) end )
+    end
+  end
+
+
+
+
+
+  def handle_call({ip,port}, _from, state) do
+    pullssl({ip,port})
+
+
+    {:reply, :ok, state}
+  end
+
+
 
   def pullssl({ip, port}) do
     :ssl.connect(ip, port, [verify: :verify_peer, cacertfile: '/etc/ssl/certs/ca-certificates.crt', depth: 9], 2000)
@@ -108,6 +131,7 @@ defmodule Sslshadow.Proc do
 
     fqdn = filterSubject(List.flatten(subject) |> Enum.filter(fn({_,oid,value}) -> if (oid == OID.txt2oid("id-at-commonName")) do value end end))
     subAlts = filterSubs(List.flatten(extensions) |> Enum.filter(fn({_,oid,_,value}) -> if (oid == OID.txt2oid("id-ce-subjectAltName")) do value end end)) 
+              |> Enum.filter(fn(x) -> x end)
 
     {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer}
 
@@ -132,6 +156,7 @@ defmodule Sslshadow.Proc do
   end
   def filterdNS(unknown) do
     Logger.debug("Unknown subjectAlt item: " <> inspect unknown)
+    nil
   end
 
 
