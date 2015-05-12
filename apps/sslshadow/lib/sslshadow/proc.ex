@@ -52,7 +52,7 @@ defmodule Sslshadow.Proc do
     |> writeMemCache({ip,port})
     |> writefqdn({ip,port})
     |> writesubAltNames({ip,port})
-    |> IO.inspect
+#    |> IO.inspect
   end
 
   def writesubAltNames(state = {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer},{ip,port}) do
@@ -69,7 +69,7 @@ defmodule Sslshadow.Proc do
 #    end
   end
   def writesubAltNames(state,{ip,port}) do
-    Logger.debug("BOOM: "<> inspect state)
+#    Logger.debug("BOOM: "<> inspect state)
     state
   end
 
@@ -104,7 +104,7 @@ defmodule Sslshadow.Proc do
     state
   end
   def writefqdn(state,{ip,port}) do
-    Logger.debug("BOOM: " <> inspect state)
+#    Logger.debug("BOOM: " <> inspect state)
     state
   end
 
@@ -197,11 +197,11 @@ defmodule Sslshadow.Proc do
     {:error, error}
   end
   def writeCert({:ok, cert}) do
-    plaincert = :public_key.pkix_decode_cert(cert, :plain)
-    pementries = :public_key.pem_entry_encode(:Certificate, plaincert)
-    certfiledata = :public_key.pem_encode([pementries])
-    filename = :random.uniform*100000000000 |> trunc |> to_string
-    File.write!("/home/red/certs/" <> filename, certfiledata)
+#    plaincert = :public_key.pkix_decode_cert(cert, :plain)
+#    pementries = :public_key.pem_entry_encode(:Certificate, plaincert)
+#    certfiledata = :public_key.pem_encode([pementries])
+#    filename = :random.uniform*100000000000 |> trunc |> to_string
+#    File.write!("/home/red/certs/" <> filename, certfiledata)
 
     {:ok, cert}
   end
@@ -219,7 +219,9 @@ defmodule Sslshadow.Proc do
   end
 
   def haveCert?({:ok, sslsocket}) do
-    :ssl.peercert(sslsocket)
+    certresp = :ssl.peercert(sslsocket)
+    :ssl.close(sslsocket)
+    certresp
   end
   def haveCert?({:error, error}) do
     {:error, error}
