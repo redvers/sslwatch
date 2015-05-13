@@ -41,7 +41,8 @@ defmodule Sslshadow.Proc do
 
 
   def pullssl({ip, port}) do
-    :ssl.connect(ip, port, [verify: :verify_peer, cacertfile: '/etc/ssl/certs/ca-certificates.crt', depth: 9], 2000)
+#    :ssl.connect(ip, port, [verify: :verify_peer, cacertfile: '/etc/ssl/certs/ca-certificates.crt', depth: 9], 2000)
+    :ssl.connect(ip, port, [], 3000)
     |> haveCert?
     |> writeCert
     |> selfSigned?
@@ -55,56 +56,74 @@ defmodule Sslshadow.Proc do
 #    |> IO.inspect
   end
 
-  def writesubAltNames(state = {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer},{ip,port}) do
+  def writesubAltNames(state = {:ok, _serialNumber, _cert, fqdn, subAlts, _decoded, issuer},{ip,port}) do
     Enum.map(subAlts, &List.to_string/1)
     |> Enum.map(fn(x) -> writefqdn({:ok, nil, nil, x, nil, nil, issuer},{ip,port}) end)
-
-
+    case SSLShadowDB.DomainPersist.read!(fqdn) do
+      nil     -> singleissuer = HashSet.new |> HashSet.put(issuer)
+                 Amnesia.transaction do
+                   SSLShadowDB.DomainPersist.write(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
+                 end
+      %SSLShadowDB.DomainPersist{issueids: hashset}
+              -> 
+                 Amnesia.transaction do
+                   SSLShadowDB.DomainPersist.write(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
+                 end
+    end
+  end
+  def writesubAltNames(state = {:error, _},{ip,port}) do
     state
-#    case SSLShadowDB.DomainPersist.read!(fqdn) do
-#      nil     -> singleissuer = HashSet.new |> HashSet.put(issuer)
-#                 SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
-#      %SSLShadowDB.DomainPersist{issueids: hashset}
-#              -> SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
-#    end
+  end
+  def writesubAltNames(state = {:final, _},{ip,port}) do
+    state
   end
   def writesubAltNames(state,{ip,port}) do
-#    Logger.debug("BOOM: "<> inspect state)
+    Logger.debug("BOOM: "<> inspect(state) <> inspect({ip, port}))
     state
   end
 
 
   def writeMemCache({:error, error},{ip,port}) do
     negcacheval = Application.get_env(:sslshadow, :negcache)
-    SSLShadowDB.IPMemCache.write!(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: {:error, error}, cachetime: (ts + negcacheval)})
-    SSLShadowDB.IPPersist.write!(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:error, error}, timestamp: ts})
+    Amnesia.transaction do
+      SSLShadowDB.IPMemCache.write(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: {:error, error}, cachetime: (ts + negcacheval)})
+      SSLShadowDB.IPPersist.write(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:error, error}, timestamp: ts})
+    end
     {:error, error}
   end
   def writeMemCache({:final, final},{ip,port}) do
     ipcachetime = Application.get_env(:sslshadow, :negcache)
-    SSLShadowDB.IPMemCache.write!(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: {:final, final}, cachetime: (ts + ipcachetime)})
-    SSLShadowDB.IPPersist.write!(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:final, final}, timestamp: ts})
+    Amnesia.transaction do
+      SSLShadowDB.IPMemCache.write(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: {:final, final}, cachetime: (ts + ipcachetime)})
+      SSLShadowDB.IPPersist.write(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:final, final}, timestamp: ts})
+    end
     {:final, final}
   end
-  def writeMemCache(state = {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer},{ip,port}) do
+  def writeMemCache(state = {:ok, _serialNumber, cert, _fqdn, _subAlts, _decoded, issuer},{ip,port}) do
     ipcachetime = Application.get_env(:sslshadow, :negcache)
-    SSLShadowDB.IPMemCache.write!(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: :ok, cachetime: (ts + ipcachetime)})
-    SSLShadowDB.IPPersist.write!(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: issuer, state: :ok, timestamp: ts})
-    SSLShadowDB.CertPersist.write!(%SSLShadowDB.CertPersist{issueid: issuer, blob: cert})
+    Amnesia.transaction do
+      SSLShadowDB.IPMemCache.write(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: :ok, cachetime: (ts + ipcachetime)})
+      SSLShadowDB.IPPersist.write(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: issuer, state: :ok, timestamp: ts})
+      SSLShadowDB.CertPersist.write(%SSLShadowDB.CertPersist{issueid: issuer, blob: cert})
+    end
     state
   end
-  def writefqdn(state = {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer},{ip,port}) do
+  def writefqdn(state = {:ok, _serialNumber, _cert, fqdn, _subAlts, _decoded, issuer},{_ip,_port}) do
     fqdn = to_string(fqdn)
     case SSLShadowDB.DomainPersist.read!(fqdn) do
       nil     -> singleissuer = HashSet.new |> HashSet.put(issuer)
-                 SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
+                 Amnesia.transaction do
+                   SSLShadowDB.DomainPersist.write(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
+                 end
       %SSLShadowDB.DomainPersist{issueids: hashset}
-              -> SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
+              -> Amnesia.transaction do
+                   SSLShadowDB.DomainPersist.write(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
+                 end
     end
     state
   end
   def writefqdn(state,{ip,port}) do
-#    Logger.debug("BOOM: " <> inspect state)
+#    Logger.debug("BOOM: " <> inspect state <> inspect {ip,port})
     state
   end
 
@@ -115,12 +134,12 @@ defmodule Sslshadow.Proc do
   def extractSubject({:final, final}) do
     {:final, final}
   end
-  def extractSubject({:ok, serialNumber, cert, decoded, issuer}) do
+  def extractSubject({:ok, _serialNumber, cert, decoded, issuer}) do
     {:OTPCertificate,                                                                                                                                                 
        {:OTPTBSCertificate,
          _version,
          serialNumber, # Integer, good as is
-         signature,    # binary
+         _signature,    # binary
          _theissuer,
          _validity,
          {:rdnSequence, subject},
@@ -129,19 +148,46 @@ defmodule Sslshadow.Proc do
          _subjectUniqueID,
          extensions},_,_} = decoded
 
-    fqdn = filterSubject(List.flatten(subject) |> Enum.filter(fn({_,oid,value}) -> if (oid == OID.txt2oid("id-at-commonName")) do value end end))
-    subAlts = filterSubs(List.flatten(extensions) |> Enum.filter(fn({_,oid,_,value}) -> if (oid == OID.txt2oid("id-ce-subjectAltName")) do value end end)) 
-              |> Enum.filter(fn(x) -> x end)
+    fqdn = extractFQDN(subject)
+#    IO.inspect fqdn
+#    fqdn = List.flatten(subject)
+#           |> Enum.filter(fn({_,oid,value}) -> if (oid == OID.txt2oid("id-at-commonName")) do value end end)
+#           |> filterSubject
+    subAlts = extractsubAlts(extensions)
+#    IO.inspect subAlts
+#    subAlts = List.flatten(extensions)
+#              |> Enum.filter(fn({_,oid,_,value}) -> if (oid == OID.txt2oid("id-ce-subjectAltName")) do value end end)
+#              |> filterSubs
+#              |> Enum.filter(fn(x) -> x end)
 
     {:ok, serialNumber, cert, fqdn, subAlts, decoded, issuer}
 
   end
 
+  def extractsubAlts(extensions) when is_list(extensions) do
+    List.flatten(extensions)
+    |> Enum.filter(fn({_,oid,_,value}) -> if (oid == OID.txt2oid("id-ce-subjectAltName")) do value end end)
+    |> filterSubs
+    |> Enum.filter(fn(x) -> x end)
+  end
+  def extractsubAlts(_extensions) do
+    []
+  end
+
+  def extractFQDN(subject) do
+    List.flatten(subject)
+    |> Enum.filter(fn({_,oid,value}) -> if (oid == OID.txt2oid("id-at-commonName")) do value end end)
+    |> filterSubject
+  end
+
   defp filterSubject([]) do
     []
   end
-  defp filterSubject([{_,_,{_,fqdn}}]) do
-    fqdn
+#  defp filterSubject([{_,_,{_,fqdn}}]) do
+#    fqdn
+#  end
+  defp filterSubject(other) do
+    Enum.map(other, fn({_,_,{_, fqdn}}) -> fqdn end)
   end
 
   defp filterSubs([]) do
@@ -176,7 +222,7 @@ defmodule Sslshadow.Proc do
   def extractRdn({:final, final}) do
     {:final, final}
   end
-  def extractRdn({:ok, serialNumber, cert, rdnSeq}) do
+  def extractRdn({:ok, serialNumber, cert, _rdnSeq}) do
     {:ok, issuer} = :public_key.pkix_issuer_id(cert, :self)
     {:ok, serialNumber, cert, issuer}
   end
@@ -220,6 +266,7 @@ defmodule Sslshadow.Proc do
 
   def haveCert?({:ok, sslsocket}) do
     certresp = :ssl.peercert(sslsocket)
+#    IO.inspect certresp
     :ssl.close(sslsocket)
     certresp
   end
@@ -260,13 +307,17 @@ defmodule Sslshadow.Proc do
              {:noreply, state}
       nil ->  case (Sslshadow.SSL.testcon({ip, port}) |> receivecert) do
         {:error, posixerror} -> Logger.debug(to_string(ip) <> ": POSIX error on connection")
-             SSLShadowDB.IP.write!(%SSLShadowDB.IP{ip: {ip, port}, cachetime: ts, state: posixerror})
+             Amnesia.transaction do
+               SSLShadowDB.IP.write(%SSLShadowDB.IP{ip: {ip, port}, cachetime: ts, state: posixerror})
+             end
              {:noreply, state}
       [ipstruct, certstruct] -> ipstruct = Map.put(ipstruct, :ip, {ip, port})
                                 ipstruct = Map.put(ipstruct, :cachetime, ts)
+             Amnesia.transaction do
+               SSLShadowDB.IP.write(ipstruct)
+               SSLShadowDB.Certs.write(certstruct)
+             end
 
-             SSLShadowDB.IP.write!(ipstruct)
-             SSLShadowDB.Certs.write!(certstruct)
              case ipstruct.state do
                :valid -> Logger.debug(to_string(ip) <> ": Validated Certificate retrieved - " <> Integer.to_string(ipstruct.serial))
                {:tls_alert, error} -> Logger.debug(to_string(ip) <> ": TLS Errored Certificate - " <> to_string(error) <> " - " 
@@ -285,7 +336,7 @@ defmodule Sslshadow.Proc do
     certstruct = Map.put(certstruct, :state, :valid)
     [ipstruct, certstruct]
   end
-  def receivecert({err = {:tls_alert, tlserror}, cert}) do
+  def receivecert({err = {:tls_alert, _tlserror}, cert}) do
 #    Logger.debug("Sslshadow.Proc: Got cert that failed validation")
     [ipstruct, certstruct] = Sslshadow.SSL.decode_cert(cert) 
       ipstruct = Map.put(ipstruct, :state, err)
