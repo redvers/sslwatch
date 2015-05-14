@@ -15,9 +15,12 @@ defmodule Sslshadow.Recv.Test do
   end
 
   def iptest do
-    stream = File.stream!("74.0-8")
+    stream = File.stream!("74-dedupe")
     Enum.map(stream, &(Regex.replace(~r/\n/, &1, "")))
     |> Enum.map(&to_char_list/1)
+    |> Enum.shuffle
+    |> Enum.take(100)
+    |> Enum.map(&(Sslshadow.Proc.fipin({&1,443})))
   end
 
 
