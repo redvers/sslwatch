@@ -264,6 +264,7 @@ def txt2oid("id-kp") do  {1,3,6,1,5,5,7,3} end
 def txt2oid("id-qt") do  {1,3,6,1,5,5,7,2} end
 def txt2oid("id-pe") do  {1,3,6,1,5,5,7,1} end
 def txt2oid("id-pkix") do  {1,3,6,1,5,5,7} end
+def txt2oid(unknown) do Logger.debug("Unknown request for oid " <> inspect unknown) ; {} end
 def oid2txt({1,2,840,113549,1,3,1}) do "dhKeyAgreement" end
 def oid2txt({1,2,840,113549,1,3}) do "pkcs-3" end
 def oid2txt({2,16,840,1,101,3,4,2,3}) do "id-sha512" end
@@ -469,5 +470,4 @@ def oid2txt({1,3,6,1,5,5,7,2}) do "id-qt" end
 def oid2txt({1,3,6,1,5,5,7,1}) do "id-pe" end
 def oid2txt({1,3,6,1,5,5,7}) do "id-pkix" end
 def oid2txt(unknown) do Logger.debug("Unknown oid " <> inspect unknown) ; "unknown" end
-def txt2oid(unknown) do Logger.debug("Unknown request for oid " <> inspect unknown) ; {} end
 end
