@@ -40,52 +40,6 @@ defmodule Sslshadow.SSL do
   end
 
 
-#  def processcert({:failedvalidation, _ip, cert, reason}) do
-#    Logger.debug("Cert failed validation, examine anyways... " <> inspect reason)
-#    :public_key.pkix_decode_cert(cert, :otp)
-##    :public_key.pkix_issuer_id(cert, :self) |> IO.inspect
-##    :public_key.pkix_dist_points(cert) |> IO.inspect
-#  end
-#  def processcert({:valid, _ip, cert, :valid}) do
-#    Logger.debug("Cert is valid, work to do")
-#    :public_key.pkix_decode_cert(cert, :otp)
-##    :public_key.pkix_issuer_id(cert, :self) |> IO.inspect
-##    :public_key.pkix_dist_points(cert) |> IO.inspect
-#  end
-
-#  def decode_cert(cert) do
-#    :public_key.der_decode('X520CommonName', cert)
-#  end
-  def decode_cert(cert) do
-    {:OTPCertificate,
-      {:OTPTBSCertificate,
-        _version,
-        serialNumber, # Integer, good as is
-        signature,    # binary
-        {:rdnSequence, issuer},
-        _validity,
-        {:rdnSequence, subject},
-        _subjectpublickey,
-        _issuerUniqueID,
-        _subjectUniqueID,
-        extensions},_,_} = :public_key.pkix_decode_cert(cert, :otp)
-
-    issuer = Enum.map(issuer, fn([{:AttributeTypeAndValue, oid, value}]) -> { String.to_atom(OID.oid2txt(oid)), value } end)
-    extensions = Enum.map(extensions, fn({:Extension, oid, criticality, value}) -> { String.to_atom(OID.oid2txt(oid)), value } end)
-
-                                      keyid = Keyword.get(extensions, String.to_atom("id-ce-subjectKeyIdentifier"))
-    {:AuthorityKeyIdentifier, cakeyid,_,_}  = Keyword.get(extensions, String.to_atom("id-ce-authorityKeyIdentifier"))
-
-    [ %SSLShadowDB.IP{serial: serialNumber, keyid: keyid, signingkeyid: cakeyid},
-      %SSLShadowDB.Certs{serial: serialNumber, keyid: keyid, signingkeyid: cakeyid, blob: cert}]
-
-  end
-
-    
-
-
-    
-
   def decodex_cert(cert) do
     {:OTPCertificate,
       {:OTPTBSCertificate,
