@@ -7,15 +7,25 @@ defmodule Sslshadow do
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
 
-#    case Amnesia.Table.exists?(SSLShadowDB.Certs) do
-#       false -> #Logger.debug("SSLShadowDB.Certs to be created")
-#                SSLShadowDB.Certs.create(disk: [node])
-#                SSLShadowDB.Domains.create(disk: [node])
-#        true -> #Logger.debug("Database already exists on disk... reading...")
-#    end
+    case Amnesia.Table.exists?(SSLShadowDB.IPPersist) do
+       false -> Amnesia.stop
+                Amnesia.Schema.destroy
+                Amnesia.Schema.create
+                Amnesia.start
+                SSLShadowDB.IPPersist.create(disk: [node])
+        true -> :ok
+    end
+    case Amnesia.Table.exists?(SSLShadowDB.CertPersist) do
+       false -> SSLShadowDB.CertPersist.create(disk: [node])
+        true -> :ok
+    end
+    case Amnesia.Table.exists?(SSLShadowDB.DomainPersist) do
+       false -> SSLShadowDB.DomainPersist.create(disk: [node])
+        true -> :ok
+    end
 
-    ## Create in-memory cache
-#    SSLShadowDB.IP.create
+    SSLShadowDB.IPMemCache.create
+    Amnesia.info
 
     children = [
       # Define workers and child supervisors to be supervised

@@ -2,10 +2,6 @@ use Amnesia
 require Logger
 
 defdatabase SSLShadowDB do
-#  deftable IP, [:ip, :serial, :keyid, :signingkeyid, :state, :cachetime], type: :set do end
-#  deftable Certs, [:serial, :keyid, :signingkeyid, :state, :firstseen, :blob], type: :bag do end
-#  deftable Domains, [:domain, :serial, :keyid], type: :bag do end
-
   deftable IPMemCache, [:ip, :cachetime, :state], type: :set do end
   deftable IPPersist, [:ip, :issueid, :state, :timestamp], type: :bag do end
   deftable CertPersist, [:issueid, :keyid, :signingkeyid, :blob], type: :set do end
