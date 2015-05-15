@@ -16,15 +16,6 @@ defmodule Sslshadow.Proc do
     end
   end
 
-  def fipin({ip,port}) do
-    ip = to_char_list(ip)
-    case SSLShadowDB.Cache.inMemCache?({ip,port}) do
-      :hit    -> :ok
-      :purged -> :poolboy.transaction(:sslproc, fn(wpid) -> spawn(GenServer, :call, [wpid, {ip,port}]) end )
-      :miss   -> :poolboy.transaction(:sslproc, fn(wpid) -> spawn(GenServer, :call, [wpid, {ip,port}]) end )
-    end
-  end
-
   def handle_call({ip,port}, _from, state) do
     pullssl({ip,port})
     {:reply, :ok, state}
