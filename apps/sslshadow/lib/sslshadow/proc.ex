@@ -41,14 +41,14 @@ defmodule Sslshadow.Proc do
     |> Enum.map(fn(x) -> writefqdn({:ok, nil, nil, x, nil, nil, issuer},{ip,port}) end)
     case SSLShadowDB.DomainPersist.read!(fqdn) do
       nil     -> singleissuer = HashSet.new |> HashSet.put(issuer)
-                 Amnesia.transaction do
-                   SSLShadowDB.DomainPersist.write(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
-                 end
+#                 Amnesia.transaction do
+                   SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
+#                 end
       %SSLShadowDB.DomainPersist{issueids: hashset}
               -> 
-                 Amnesia.transaction do
-                   SSLShadowDB.DomainPersist.write(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
-                 end
+#                 Amnesia.transaction do
+                   SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
+#                 end
     end
   end
   def writesubAltNames(state = {:error, _},{_ip,_port}) do
@@ -65,40 +65,40 @@ defmodule Sslshadow.Proc do
 
   def writeMemCache({:error, error},{ip,port}) do
     negcacheval = Application.get_env(:sslshadow, :negcache)
-    Amnesia.transaction do
-      SSLShadowDB.IPMemCache.write(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: {:error, error}, cachetime: (ts + negcacheval)})
-      SSLShadowDB.IPPersist.write(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:error, error}, timestamp: ts})
-    end
+#    Amnesia.transaction do
+      SSLShadowDB.IPMemCache.write!(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: {:error, error}, cachetime: (ts + negcacheval)})
+      SSLShadowDB.IPPersist.write!(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:error, error}, timestamp: ts})
+#    end
     {:error, error}
   end
   def writeMemCache({:final, final},{ip,port}) do
     ipcachetime = Application.get_env(:sslshadow, :negcache)
-    Amnesia.transaction do
-      SSLShadowDB.IPMemCache.write(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: {:final, final}, cachetime: (ts + ipcachetime)})
-      SSLShadowDB.IPPersist.write(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:final, final}, timestamp: ts})
-    end
+#    Amnesia.transaction do
+      SSLShadowDB.IPMemCache.write!(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: {:final, final}, cachetime: (ts + ipcachetime)})
+      SSLShadowDB.IPPersist.write!(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: nil, state: {:final, final}, timestamp: ts})
+#    end
     {:final, final}
   end
   def writeMemCache(state = {:ok, _serialNumber, cert, _fqdn, _subAlts, _decoded, issuer},{ip,port}) do
     ipcachetime = Application.get_env(:sslshadow, :negcache)
-    Amnesia.transaction do
-      SSLShadowDB.IPMemCache.write(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: :ok, cachetime: (ts + ipcachetime)})
-      SSLShadowDB.IPPersist.write(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: issuer, state: :ok, timestamp: ts})
-      SSLShadowDB.CertPersist.write(%SSLShadowDB.CertPersist{issueid: issuer, blob: cert})
-    end
+#    Amnesia.transaction do
+      SSLShadowDB.IPMemCache.write!(%SSLShadowDB.IPMemCache{ip: {ip,port}, state: :ok, cachetime: (ts + ipcachetime)})
+      SSLShadowDB.IPPersist.write!(%SSLShadowDB.IPPersist{ip: {ip,port}, issueid: issuer, state: :ok, timestamp: ts})
+      SSLShadowDB.CertPersist.write!(%SSLShadowDB.CertPersist{issueid: issuer, blob: cert})
+#    end
     state
   end
   def writefqdn(state = {:ok, _serialNumber, _cert, fqdn, _subAlts, _decoded, issuer},{_ip,_port}) do
     fqdn = to_string(fqdn)
     case SSLShadowDB.DomainPersist.read!(fqdn) do
       nil     -> singleissuer = HashSet.new |> HashSet.put(issuer)
-                 Amnesia.transaction do
-                   SSLShadowDB.DomainPersist.write(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
-                 end
+#                 Amnesia.transaction do
+                   SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: singleissuer})
+#                 end
       %SSLShadowDB.DomainPersist{issueids: hashset}
-              -> Amnesia.transaction do
-                   SSLShadowDB.DomainPersist.write(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
-                 end
+              -> #Amnesia.transaction do
+                   SSLShadowDB.DomainPersist.write!(%SSLShadowDB.DomainPersist{domain: fqdn, issueids: HashSet.put(hashset, issuer)})
+#                 end
     end
     state
   end
