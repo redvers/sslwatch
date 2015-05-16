@@ -22,8 +22,8 @@ defmodule Sslshadow.Proc do
   end
 
   def pullssl({ip, port}) do
-#    :ssl.connect(ip, port, [verify: :verify_peer, cacertfile: '/etc/ssl/certs/ca-certificates.crt', depth: 9], 2000)
-    :ssl.connect(ip, port, [], 3000)
+    :ssl.connect(ip, port, [verify: :verify_peer, cacertfile: '/etc/ssl/certs/ca-certificates.crt', depth: 9], 2000)
+#    :ssl.connect(ip, port, [], 3000)
     |> haveCert?
     |> writeCert
     |> selfSigned?

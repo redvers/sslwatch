@@ -11,3 +11,5 @@ config :sslshadow, ssltimeout:  3000,   # Number of ms to connect to remote serv
 config :mnesia,     dir: '/home/sslwatch/mnesia-data', # Yes, must be single quotes
                     dc_dump_limit:  100,
                     dump_log_write_threshold: 100000 
+
+import_config "./cb_creds*.exs"

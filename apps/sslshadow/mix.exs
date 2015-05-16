@@ -37,7 +37,8 @@ defmodule Sslshadow.Mixfile do
   defp deps do
     [
       {:poolboy, github: "devinus/poolboy", tag: "1.5.1"},
-      {:amnesia, git: "https://github.com/meh/amnesia.git" }
+      {:amnesia, git: "https://github.com/meh/amnesia.git" },
+      {:cbserverapi, git: "https://github.com/redvers/cbserverapi.git"}
     ]
   end
 end
